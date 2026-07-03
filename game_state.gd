@@ -5,8 +5,11 @@
 
 extends Node
 
+const TOTAL_SLOTS := 20
+
 signal changed
 signal message(text: String)
+signal game_over
 
 var attendance: float = 70.0
 var energy: float = 80.0
@@ -14,6 +17,7 @@ var mood: float = 60.0
 var cgpa: float = 7.5
 var money: float = 300.0
 var slot: int = 0
+var game_active: bool = true
 
 func apply(fx: Dictionary) -> void:
 	for key in fx.keys():
@@ -34,4 +38,17 @@ func apply(fx: Dictionary) -> void:
 	cgpa = clamp(cgpa, 0.0, 10.0)
 	money = max(money, 0.0)
 	slot += 1
+	changed.emit()
+	if slot >= TOTAL_SLOTS:
+		game_active = false
+		game_over.emit()
+
+func reset() -> void:
+	attendance = 70.0
+	energy = 80.0
+	mood = 60.0
+	cgpa = 7.5
+	money = 300.0
+	slot = 0
+	game_active = true
 	changed.emit()

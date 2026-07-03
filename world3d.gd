@@ -28,6 +28,8 @@ const WALLS := [
 ]
 const ROOF_DARKEN := 0.55
 const TREE_COUNT := 350
+const BUILDING_AREA_MARGIN := 6.0  # meters of walkway added around each footprint's bbox
+const BUILDING_AREA_HEIGHT := 10.0
 
 var _gen: Node3D
 var _window_tex: ImageTexture
@@ -374,13 +376,32 @@ func _build_campus(path: String) -> void:
 
 		if b["name"] != "":
 			var c2 := _centroid(b["points"])
+
+			# size the trigger zone to the building's actual footprint bbox
+			# (+ margin) instead of a fixed box, so large buildings get large zones
+			var min_x := INF
+			var max_x := -INF
+			var min_z := INF
+			var max_z := -INF
+			for p in b["points"]:
+				min_x = min(min_x, p[0]); max_x = max(max_x, p[0])
+				min_z = min(min_z, p[1]); max_z = max(max_z, p[1])
+
 			var area := Area3D.new()
 			var shape := CollisionShape3D.new()
 			var box := BoxShape3D.new()
-			box.size = Vector3(18, 8, 18)
+			box.size = Vector3(
+				(max_x - min_x) + BUILDING_AREA_MARGIN * 2.0,
+				BUILDING_AREA_HEIGHT,
+				(max_z - min_z) + BUILDING_AREA_MARGIN * 2.0,
+			)
 			shape.shape = box
 			area.add_child(shape)
-			area.position = Vector3(c2.x, 2, c2.y)
+			area.position = Vector3((min_x + max_x) * 0.5, 2, (min_z + max_z) * 0.5)
+			area.monitoring = true
+			area.monitorable = true
+			area.collision_layer = 1
+			area.collision_mask = 1
 			var building_name: String = b["name"]
 			area.set_meta("building_name", building_name)
 			area.body_entered.connect(func(body: Node3D) -> void:

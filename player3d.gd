@@ -23,6 +23,10 @@ func _ready() -> void:
 	cam.current = true
 
 func _physics_process(_delta: float) -> void:
+	if not GameState.game_active:
+		velocity = Vector3.ZERO
+		move_and_slide()
+		return
 	var input := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 	velocity.x = input.x * SPEED
 	velocity.z = input.y * SPEED
@@ -30,15 +34,19 @@ func _physics_process(_delta: float) -> void:
 	move_and_slide()
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not GameState.game_active:
+		return
 	if event.is_action_pressed("interact"):
 		_interact()
 
 # called by the building Area3D (see world3d.gd) when the player enters/exits its trigger
 func set_current_building(building_name: String) -> void:
+	print("Entered zone: %s" % building_name)
 	current_building = building_name
 
 func clear_current_building(building_name: String) -> void:
 	if current_building == building_name:
+		print("Left zone: %s" % building_name)
 		current_building = ""
 
 func _interact() -> void:
