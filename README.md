@@ -5,6 +5,7 @@ You get 5 days to manage your life, go to classes, and try not to fail out.
 
 Play in your browser
 You can play the web version right here: https://shai-tan1.github.io/JU-Simulator-2/
+wait for 2 minutes, it takes time for the first time
 
 What's the game about?
 You basically just walk around and try to keep your stats in check. The UI on the top left shows how you're doing:
