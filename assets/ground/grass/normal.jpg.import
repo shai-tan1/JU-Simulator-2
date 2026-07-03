@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cpkovdkjbbjnp"
-path.s3tc="res://.godot/imported/normal.jpg-12f666432244f3ebce0f0f9b14d9311d.s3tc.ctex"
+uid="uid://2ysa4hdbabuc"
+path.s3tc="res://.godot/imported/normal.jpg-b223fc5825c9c116f0d976a124147c43.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
@@ -11,8 +11,8 @@ metadata={
 
 [deps]
 
-source_file="res://assets/ground/brick_earth/normal.jpg"
-dest_files=["res://.godot/imported/normal.jpg-12f666432244f3ebce0f0f9b14d9311d.s3tc.ctex"]
+source_file="res://assets/ground/grass/normal.jpg"
+dest_files=["res://.godot/imported/normal.jpg-b223fc5825c9c116f0d976a124147c43.s3tc.ctex"]
 
 [params]
 

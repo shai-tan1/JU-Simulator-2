@@ -130,6 +130,131 @@ void fragment() {
 	m.shader = sh
 	return m
 
+func _ground_blend_mat() -> ShaderMaterial:
+	var sh := Shader.new()
+	sh.code = """
+shader_type spatial;
+render_mode cull_disabled, diffuse_burley, specular_schlick_ggx;
+
+group_uniforms layers;
+uniform sampler2D mud_albedo : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D mud_normal : hint_normal, filter_linear_mipmap, repeat_enable;
+uniform sampler2D mud_rough : hint_default_white, filter_linear_mipmap, repeat_enable;
+uniform sampler2D brick_albedo : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D brick_normal : hint_normal, filter_linear_mipmap, repeat_enable;
+uniform sampler2D brick_rough : hint_default_white, filter_linear_mipmap, repeat_enable;
+uniform sampler2D leaves_albedo : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D leaves_normal : hint_normal, filter_linear_mipmap, repeat_enable;
+uniform sampler2D leaves_rough : hint_default_white, filter_linear_mipmap, repeat_enable;
+uniform sampler2D rock_albedo : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D rock_normal : hint_normal, filter_linear_mipmap, repeat_enable;
+uniform sampler2D rock_rough : hint_default_white, filter_linear_mipmap, repeat_enable;
+
+group_uniforms tint;
+uniform vec4 mud_tint : source_color = vec4(1.0, 1.0, 1.0, 1.0);
+uniform vec4 brick_tint : source_color = vec4(1.0, 1.0, 1.0, 1.0);
+uniform vec4 leaves_tint : source_color = vec4(1.0, 1.0, 1.0, 1.0);
+uniform vec4 rock_tint : source_color = vec4(1.0, 1.0, 1.0, 1.0);
+
+group_uniforms patches;
+uniform float texture_scale = 0.15;
+uniform float macro_scale = 80.0;
+uniform float mid_scale = 14.0;
+uniform float mid_influence : hint_range(0.0, 1.0) = 0.28;
+uniform float brick_threshold : hint_range(0.0, 1.0) = 0.52;
+uniform float leaves_threshold : hint_range(0.0, 1.0) = 0.70;
+uniform float rock_threshold : hint_range(0.0, 1.0) = 0.86;
+uniform float blend_width : hint_range(0.001, 0.3) = 0.06;
+
+varying vec3 world_pos;
+
+void vertex() {
+	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+}
+
+float hash12(vec2 p) {
+	vec3 p3 = fract(vec3(p.x, p.y, p.x) * 0.1031);
+	p3 += dot(p3, p3.yzx + 33.33);
+	return fract((p3.x + p3.y) * p3.z);
+}
+
+// smooth bilinear value noise, period-free (not tileable but continuous everywhere)
+float value_noise(vec2 p) {
+	vec2 i = floor(p);
+	vec2 f = fract(p);
+	float a = hash12(i);
+	float b = hash12(i + vec2(1.0, 0.0));
+	float c = hash12(i + vec2(0.0, 1.0));
+	float d = hash12(i + vec2(1.0, 1.0));
+	vec2 u = f * f * (3.0 - 2.0 * f);
+	return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
+void fragment() {
+	vec2 wxz = world_pos.xz;
+
+	// macro noise picks the biome patch, mid noise roughs up its edges
+	float macro_n = value_noise(wxz / macro_scale);
+	float mid_n = value_noise(wxz / mid_scale + vec2(31.7, 5.2));
+	float n = clamp(macro_n + (mid_n - 0.5) * mid_influence, 0.0, 1.0);
+
+	vec2 uv = wxz * texture_scale;
+
+	vec4 mud_a = texture(mud_albedo, uv) * mud_tint;
+	vec4 brick_a = texture(brick_albedo, uv) * brick_tint;
+	vec4 leaves_a = texture(leaves_albedo, uv) * leaves_tint;
+	vec4 rock_a = texture(rock_albedo, uv) * rock_tint;
+
+	vec3 mud_n = texture(mud_normal, uv).rgb;
+	vec3 brick_n = texture(brick_normal, uv).rgb;
+	vec3 leaves_n = texture(leaves_normal, uv).rgb;
+	vec3 rock_n = texture(rock_normal, uv).rgb;
+
+	float mud_r = texture(mud_rough, uv).r;
+	float brick_r = texture(brick_rough, uv).r;
+	float leaves_r = texture(leaves_rough, uv).r;
+	float rock_r = texture(rock_rough, uv).r;
+
+	float w_brick = smoothstep(brick_threshold - blend_width, brick_threshold + blend_width, n);
+	float w_leaves = smoothstep(leaves_threshold - blend_width, leaves_threshold + blend_width, n);
+	float w_rock = smoothstep(rock_threshold - blend_width, rock_threshold + blend_width, n);
+
+	vec4 albedo = mix(mud_a, brick_a, w_brick);
+	albedo = mix(albedo, leaves_a, w_leaves);
+	albedo = mix(albedo, rock_a, w_rock);
+
+	vec3 nrm = mix(mud_n, brick_n, w_brick);
+	nrm = mix(nrm, leaves_n, w_leaves);
+	nrm = mix(nrm, rock_n, w_rock);
+
+	float rough = mix(mud_r, brick_r, w_brick);
+	rough = mix(rough, leaves_r, w_leaves);
+	rough = mix(rough, rock_r, w_rock);
+
+	ALBEDO = albedo.rgb;
+	NORMAL_MAP = nrm;
+	NORMAL_MAP_DEPTH = 1.0;
+	ROUGHNESS = rough;
+}
+"""
+	var m := ShaderMaterial.new()
+	m.shader = sh
+
+	var base := "res://assets/ground/"
+	var layers := ["mud", "brick_earth", "leaves", "rock"]
+	var params := ["mud", "brick", "leaves", "rock"]
+	for i in range(layers.size()):
+		var dir: String = base + layers[i] + "/"
+		var prefix: String = params[i]
+		if ResourceLoader.exists(dir + "diff.jpg"):
+			m.set_shader_parameter(prefix + "_albedo", load(dir + "diff.jpg"))
+		if ResourceLoader.exists(dir + "normal.jpg"):
+			m.set_shader_parameter(prefix + "_normal", load(dir + "normal.jpg"))
+		if ResourceLoader.exists(dir + "rough.jpg"):
+			m.set_shader_parameter(prefix + "_rough", load(dir + "rough.jpg"))
+
+	return m
+
 # ------------------------------ custom textures ------------------------------
 func _pbr_mat(albedo_path: String, normal_path: String, rough_path: String, uv_scale: float = 0.2) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
@@ -172,8 +297,9 @@ func _build_campus(path: String) -> void:
 	var data: Dictionary = JSON.parse_string(f.get_as_text())
 
 	var water_material := _water_mat()
+	var ground_blend_material := _ground_blend_mat()
 	for fld in data.get("fields", []):
-		_flat_poly(fld, 0.03, _flat_mat(COL["field"], true))
+		_flat_poly(fld, 0.03, ground_blend_material)
 	for w in data.get("water", []):
 		_flat_poly(w, 0.06, water_material)
 		_wpolys.append(w)
@@ -214,7 +340,9 @@ func _build_campus(path: String) -> void:
 		_bpolys.append(b["points"])
 
 		var model_path := "res://models/%s.glb" % str(b["name"]).replace(" ", "_")
-		if b["name"] != "" and ResourceLoader.exists(model_path):
+		if b["name"] == "Aurobindo Bhavan":
+			pass # placed by hand under Handmade — no auto model, no placeholder box
+		elif b["name"] != "" and ResourceLoader.exists(model_path):
 			var scene: PackedScene = load(model_path)
 			var inst := scene.instantiate()
 			var c := _centroid(b["points"])
@@ -451,7 +579,7 @@ func _add_ground_and_light() -> void:
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(3000, 3000)
 	ground.mesh = plane
-	ground.material_override = _flat_mat(COL["ground"], true)
+	ground.material_override = _ground_blend_mat()
 	ground.position = Vector3(600, 0, 600)
 	_gen.add_child(ground)
 

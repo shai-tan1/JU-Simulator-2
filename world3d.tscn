@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://0eo3gc0iswyn" path="res://world3d.gd" id="1_k4a2v"]
 [ext_resource type="PackedScene" uid="uid://yav6yv44smfd" path="res://player3d.tscn" id="2_cmar3"]
+[ext_resource type="PackedScene" uid="uid://2xgtsk34bs28" path="res://models/Aurobindo_Bhavan.glb" id="3_cib8k"]
 
 [node name="World3D" type="Node3D" unique_id=1117583560]
 transform = Transform3D(0.38293034, 0, -0.9237772, 0.017947594, 0.99981123, 0.007439757, 0.9236028, -0.019428488, 0.38285807, 0, 0, 0)
@@ -12,3 +13,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 301.96158, 341.81067, 549.135
 
 [node name="Handmade" type="Node3D" parent="." unique_id=773295433]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -794.26263, -1552.4562, -2529.8315)
+
+[node name="Aurobindo_Bhavan" parent="Handmade" unique_id=1898944524 instance=ExtResource("3_cib8k")]
+transform = Transform3D(0.9091877, -0.030187784, -0.41529608, 0.030692628, 0.9995158, -0.0054606465, 0.41525996, -0.007781716, 0.90967274, 1453.4049, 1559.1371, 3588.7473)
