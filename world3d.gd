@@ -381,7 +381,16 @@ func _build_campus(path: String) -> void:
 			shape.shape = box
 			area.add_child(shape)
 			area.position = Vector3(c2.x, 2, c2.y)
-			area.set_meta("building_name", b["name"])
+			var building_name: String = b["name"]
+			area.set_meta("building_name", building_name)
+			area.body_entered.connect(func(body: Node3D) -> void:
+				if body.has_method("set_current_building"):
+					body.set_current_building(building_name)
+			)
+			area.body_exited.connect(func(body: Node3D) -> void:
+				if body.has_method("clear_current_building"):
+					body.clear_current_building(building_name)
+			)
 			_gen.add_child(area)
 
 			var label := Label3D.new()
