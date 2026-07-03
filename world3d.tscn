@@ -2,10 +2,6 @@
 
 [ext_resource type="Script" uid="uid://0eo3gc0iswyn" path="res://world3d.gd" id="1_k4a2v"]
 [ext_resource type="PackedScene" uid="uid://yav6yv44smfd" path="res://player3d.tscn" id="2_cmar3"]
-[ext_resource type="ArrayMesh" uid="uid://duj6747nq4qsk" path="res://assets/grass_blades/grass.res" id="4_mlqsr"]
-
-[sub_resource type="MultiMesh" id="MultiMesh_v2p2t"]
-mesh = ExtResource("4_mlqsr")
 
 [node name="World3D" type="Node3D" unique_id=1117583560]
 transform = Transform3D(0.38293034, 0, -0.9237772, 0.017947594, 0.99981123, 0.007439757, 0.9236028, -0.019428488, 0.38285807, 0, 0, 0)
@@ -16,6 +12,3 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 301.96158, 341.81067, 549.135
 
 [node name="Handmade" type="Node3D" parent="." unique_id=773295433]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -794.26263, -1552.4562, -2529.8315)
-
-[node name="BladeSource" type="MultiMeshInstance3D" parent="Handmade" unique_id=1618727372]
-multimesh = SubResource("MultiMesh_v2p2t")

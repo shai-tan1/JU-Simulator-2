@@ -368,6 +368,31 @@ func _blocked(x: float, z: float) -> bool:
 			return true
 	return false
 
+const TREE_SCALE := 5.0
+const TREE_MODELS := [
+	"res://assets/nature/tree_default.glb",
+	"res://assets/nature/tree_oak.glb",
+	"res://assets/nature/tree_detailed.glb",
+	"res://assets/nature/tree_tall.glb",
+]
+
+func _extract_mesh(path: String) -> Mesh:
+	if not ResourceLoader.exists(path):
+		return null
+	var scene: PackedScene = load(path)
+	var inst := scene.instantiate()
+	var found: Mesh = null
+	var stack: Array = [inst]
+	while not stack.is_empty():
+		var n = stack.pop_back()
+		if n is MeshInstance3D and n.mesh != null:
+			found = n.mesh
+			break
+		for child in n.get_children():
+			stack.append(child)
+	inst.free()
+	return found
+
 func _scatter_trees(bounds: Dictionary) -> void:
 	if bounds.is_empty():
 		return
@@ -376,53 +401,49 @@ func _scatter_trees(bounds: Dictionary) -> void:
 	var min_z: float = bounds["min_z"]
 	var max_z: float = bounds["max_z"]
 
-	var spots: Array[Vector3] = []
+	# load available tree meshes
+	var meshes: Array = []
+	for p in TREE_MODELS:
+		var m := _extract_mesh(p)
+		if m != null:
+			meshes.append(m)
+	if meshes.is_empty():
+		push_warning("no tree models found in assets/nature — check filenames")
+		return
+
+	# one bucket of positions per mesh
+	var buckets: Array = []
+	for i in range(meshes.size()):
+		buckets.append([])
+
+	var placed := 0
 	var attempts := 0
-	while spots.size() < TREE_COUNT and attempts < TREE_COUNT * 12:
+	while placed < TREE_COUNT and attempts < TREE_COUNT * 12:
 		attempts += 1
 		var x := randf_range(min_x, max_x)
 		var z := randf_range(min_z, max_z)
 		if not _blocked(x, z):
-			spots.append(Vector3(x, 0, z))
+			var s := randf_range(0.8, 1.6) * TREE_SCALE
+			var yaw := randf() * TAU
+			var basis := Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s))
+			buckets[randi() % meshes.size()].append(
+				Transform3D(basis, Vector3(x, 0, z)))
+			placed += 1
 
-	var trunk_mesh := CylinderMesh.new()
-	trunk_mesh.top_radius = 0.22
-	trunk_mesh.bottom_radius = 0.3
-	trunk_mesh.height = 2.4
-	trunk_mesh.material = _flat_mat(Color(0.38, 0.26, 0.15))
-
-	var canopy_mesh := SphereMesh.new()
-	canopy_mesh.radius = 1.0
-	canopy_mesh.height = 2.0
-	canopy_mesh.material = _flat_mat(Color(0.20, 0.45, 0.20))
-
-	var trunks := MultiMesh.new()
-	trunks.transform_format = MultiMesh.TRANSFORM_3D
-	trunks.mesh = trunk_mesh
-	trunks.instance_count = spots.size()
-
-	var canopies := MultiMesh.new()
-	canopies.transform_format = MultiMesh.TRANSFORM_3D
-	canopies.mesh = canopy_mesh
-	canopies.instance_count = spots.size()
-
-	for i in range(spots.size()):
-		var s := randf_range(0.8, 1.6)
-		var pos: Vector3 = spots[i]
-		trunks.set_instance_transform(i,
-			Transform3D(Basis.IDENTITY.scaled(Vector3(s, s, s)),
-				pos + Vector3(0, 1.2 * s, 0)))
-		canopies.set_instance_transform(i,
-			Transform3D(Basis.IDENTITY.scaled(Vector3(2.2 * s, 2.2 * s, 2.2 * s)),
-				pos + Vector3(0, 2.4 * s + 1.6 * s, 0)))
-
-	var tmi := MultiMeshInstance3D.new()
-	tmi.multimesh = trunks
-	_gen.add_child(tmi)
-	var cmi := MultiMeshInstance3D.new()
-	cmi.multimesh = canopies
-	_gen.add_child(cmi)
-	print("Planted %d trees" % spots.size())
+	for i in range(meshes.size()):
+		var list: Array = buckets[i]
+		if list.is_empty():
+			continue
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = meshes[i]
+		mm.instance_count = list.size()
+		for j in range(list.size()):
+			mm.set_instance_transform(j, list[j])
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		_gen.add_child(mmi)
+		print("Planted %d of %s" % [list.size(), TREE_MODELS[i].get_file()])
 
 # --------------------------- ground & light ---------------------------
 func _add_ground_and_light() -> void:
