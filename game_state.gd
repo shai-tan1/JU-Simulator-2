@@ -6,6 +6,7 @@
 extends Node
 
 signal changed
+signal message(text: String)
 
 var attendance: float = 70.0
 var energy: float = 80.0

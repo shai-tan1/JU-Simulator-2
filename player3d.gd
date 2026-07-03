@@ -47,9 +47,12 @@ func _interact() -> void:
 	if Actions.TABLE.has(current_building):
 		var action: Dictionary = Actions.TABLE[current_building]
 		GameState.apply(action["fx"])
+		GameState.message.emit(action["msg"])
 		print("%s → att=%.1f energy=%.1f mood=%.1f cgpa=%.2f money=₹%.0f" % [
 			action["msg"], GameState.attendance, GameState.energy,
 			GameState.mood, GameState.cgpa, GameState.money,
 		])
 	else:
-		print("Nothing to do at %s yet." % current_building)
+		var msg: String = "Nothing to do at %s yet." % current_building
+		GameState.message.emit(msg)
+		print(msg)

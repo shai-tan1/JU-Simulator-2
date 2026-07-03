@@ -10,9 +10,12 @@ extends CanvasLayer
 @onready var cgpa_label: Label = $Panel/VBox/CGPALabel
 @onready var money_label: Label = $Panel/VBox/MoneyLabel
 @onready var slot_label: Label = $Panel/VBox/SlotLabel
+@onready var toast: PanelContainer = $Toast
+@onready var toast_label: Label = $Toast/ToastLabel
 
 var _fill_normal: StyleBoxFlat
 var _fill_low: StyleBoxFlat
+var _toast_token: int = 0
 
 func _ready() -> void:
 	# duplicate the shared fill stylebox so recoloring attendance never
@@ -21,7 +24,18 @@ func _ready() -> void:
 	_fill_low = _fill_normal.duplicate()
 	_fill_low.bg_color = Color(0.82, 0.22, 0.22, 1.0)
 	GameState.changed.connect(_refresh)
+	GameState.message.connect(show_toast)
 	_refresh()
+
+func show_toast(text: String) -> void:
+	toast_label.text = text
+	toast.visible = true
+	_toast_token += 1
+	var token: int = _toast_token
+	await get_tree().create_timer(3.0).timeout
+	# a newer toast may have already replaced this one — only the latest timer hides it
+	if token == _toast_token:
+		toast.visible = false
 
 func _refresh() -> void:
 	attendance_bar.value = GameState.attendance
