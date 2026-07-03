@@ -1,0 +1,117 @@
+[gd_scene format=3 uid="uid://bqx8g5j3n7v4m"]
+
+[ext_resource type="Script" path="res://hud.gd" id="1_hud"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.05, 0.06, 0.09, 0.72)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+content_margin_left = 14.0
+content_margin_top = 12.0
+content_margin_right = 14.0
+content_margin_bottom = 12.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bar_bg"]
+bg_color = Color(1, 1, 1, 0.12)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bar_fill"]
+bg_color = Color(0.36, 0.78, 0.42, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[node name="HUD" type="CanvasLayer"]
+script = ExtResource("1_hud")
+
+[node name="Panel" type="PanelContainer" parent="."]
+offset_left = 12.0
+offset_top = 12.0
+offset_right = 12.0
+offset_bottom = 12.0
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="VBox" type="VBoxContainer" parent="Panel"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="AttendanceRow" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="AttendanceLabel" type="Label" parent="Panel/VBox/AttendanceRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(82, 0)
+theme_override_colors/font_color = Color(0.95, 0.95, 0.95, 1)
+text = "Attendance"
+
+[node name="AttendanceBar" type="ProgressBar" parent="Panel/VBox/AttendanceRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(140, 18)
+min_value = 0.0
+max_value = 100.0
+value = 70.0
+show_percentage = false
+theme_override_styles/background = SubResource("StyleBoxFlat_bar_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_bar_fill")
+
+[node name="EnergyRow" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="EnergyLabel" type="Label" parent="Panel/VBox/EnergyRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(82, 0)
+theme_override_colors/font_color = Color(0.95, 0.95, 0.95, 1)
+text = "Energy"
+
+[node name="EnergyBar" type="ProgressBar" parent="Panel/VBox/EnergyRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(140, 18)
+min_value = 0.0
+max_value = 100.0
+value = 80.0
+show_percentage = false
+theme_override_styles/background = SubResource("StyleBoxFlat_bar_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_bar_fill")
+
+[node name="MoodRow" type="HBoxContainer" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="MoodLabel" type="Label" parent="Panel/VBox/MoodRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(82, 0)
+theme_override_colors/font_color = Color(0.95, 0.95, 0.95, 1)
+text = "Mood"
+
+[node name="MoodBar" type="ProgressBar" parent="Panel/VBox/MoodRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(140, 18)
+min_value = 0.0
+max_value = 100.0
+value = 60.0
+show_percentage = false
+theme_override_styles/background = SubResource("StyleBoxFlat_bar_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_bar_fill")
+
+[node name="CGPALabel" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.95, 0.95, 1)
+text = "CGPA 7.50"
+
+[node name="MoneyLabel" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.95, 0.95, 0.95, 1)
+text = "₹300"
+
+[node name="SlotLabel" type="Label" parent="Panel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.78, 0.84, 1, 1)
+text = "Day 1 / 5"
