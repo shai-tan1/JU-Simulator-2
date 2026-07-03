@@ -4,8 +4,13 @@
 [ext_resource type="PackedScene" uid="uid://yav6yv44smfd" path="res://player3d.tscn" id="2_cmar3"]
 [ext_resource type="PackedScene" uid="uid://2xgtsk34bs28" path="res://models/Aurobindo_Bhavan.glb" id="3_cib8k"]
 
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_uoh4m"]
+albedo_color = Color(0.47843137, 0.18039216, 0.18039216, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_0o3js"]
+
 [node name="World3D" type="Node3D" unique_id=1117583560]
-transform = Transform3D(0.38293034, 0, -0.9237772, 0.017947594, 0.99981123, 0.007439757, 0.9236028, -0.019428488, 0.38285807, 0, 0, 0)
+transform = Transform3D(0.38293034, 0, -0.9237772, 0.017947594, 0.99981123, 0.007439757, 0.9236028, -0.019428488, 0.38285807, 0, 0, 111.50354)
 script = ExtResource("1_k4a2v")
 
 [node name="Player3D" parent="." unique_id=134246 instance=ExtResource("2_cmar3")]
@@ -15,4 +20,56 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 301.96158, 341.81067, 549.135
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -794.26263, -1552.4562, -2529.8315)
 
 [node name="Aurobindo_Bhavan" parent="Handmade" unique_id=1898944524 instance=ExtResource("3_cib8k")]
-transform = Transform3D(0.9091877, -0.030187784, -0.41529608, 0.030692628, 0.9995158, -0.0054606465, 0.41525996, -0.007781716, 0.90967274, 1453.4049, 1559.1371, 3588.7473)
+transform = Transform3D(0.9232564, -0.0074901953, -0.38412192, 0.028256638, 0.9984291, 0.048447374, 0.383156, -0.055583015, 0.9220161, 1508.3489, 1551.2137, 3482.9214)
+
+[node name="geometry_0" parent="Handmade/Aurobindo_Bhavan/world" parent_id_path=PackedInt32Array(1898944524, 1600208316) index="0" unique_id=579866628]
+transform = Transform3D(1, 1.15484e-06, -2.0208769e-05, -1.1511147e-06, 0.9999999, -0.00042410183, 2.0208536e-05, 0.00042410294, 1, -0.006591797, -0.13804626, -0.006713867)
+surface_material_override/0 = SubResource("StandardMaterial3D_uoh4m")
+
+[node name="geometry_1" parent="Handmade/Aurobindo_Bhavan/world" parent_id_path=PackedInt32Array(1898944524, 1600208316) index="1" unique_id=117707839]
+material_override = SubResource("StandardMaterial3D_0o3js")
+surface_material_override/0 = SubResource("StandardMaterial3D_uoh4m")
+
+[node name="geometry_2" parent="Handmade/Aurobindo_Bhavan/world" parent_id_path=PackedInt32Array(1898944524, 1600208316) index="2" unique_id=1277725793]
+surface_material_override/0 = SubResource("StandardMaterial3D_uoh4m")
+
+[node name="geometry_3" parent="Handmade/Aurobindo_Bhavan/world" parent_id_path=PackedInt32Array(1898944524, 1600208316) index="3" unique_id=1341644216]
+transform = Transform3D(0.99999994, 3.7252903e-09, 0, -3.7252903e-09, 0.99999994, 9.604264e-10, -2.3283064e-10, 1.5570549e-09, 0.99999994, -0.5551758, 0.33206177, -0.0036621094)
+surface_material_override/0 = SubResource("StandardMaterial3D_uoh4m")
+
+[node name="geometry_4" parent="Handmade/Aurobindo_Bhavan/world" parent_id_path=PackedInt32Array(1898944524, 1600208316) index="4" unique_id=500522083]
+surface_material_override/0 = SubResource("StandardMaterial3D_uoh4m")
+
+[node name="geometry_5" parent="Handmade/Aurobindo_Bhavan/world" parent_id_path=PackedInt32Array(1898944524, 1600208316) index="5" unique_id=1165945880]
+surface_material_override/0 = SubResource("StandardMaterial3D_uoh4m")
+
+[node name="geometry_6" parent="Handmade/Aurobindo_Bhavan/world" parent_id_path=PackedInt32Array(1898944524, 1600208316) index="6" unique_id=2070580381]
+surface_material_override/0 = SubResource("StandardMaterial3D_uoh4m")
+
+[node name="geometry_7" parent="Handmade/Aurobindo_Bhavan/world" parent_id_path=PackedInt32Array(1898944524, 1600208316) index="7" unique_id=634089684]
+surface_material_override/0 = SubResource("StandardMaterial3D_uoh4m")
+
+[node name="geometry_8" parent="Handmade/Aurobindo_Bhavan/world" parent_id_path=PackedInt32Array(1898944524, 1600208316) index="8" unique_id=178275792]
+surface_material_override/0 = SubResource("StandardMaterial3D_uoh4m")
+
+[node name="geometry_9" parent="Handmade/Aurobindo_Bhavan/world" parent_id_path=PackedInt32Array(1898944524, 1600208316) index="9" unique_id=2060512026]
+visible = false
+surface_material_override/0 = SubResource("StandardMaterial3D_uoh4m")
+
+[node name="geometry_10" parent="Handmade/Aurobindo_Bhavan/world" parent_id_path=PackedInt32Array(1898944524, 1600208316) index="10" unique_id=1049634244]
+visible = false
+surface_material_override/0 = SubResource("StandardMaterial3D_uoh4m")
+
+[node name="geometry_11" parent="Handmade/Aurobindo_Bhavan/world" parent_id_path=PackedInt32Array(1898944524, 1600208316) index="11" unique_id=742426817]
+visible = false
+surface_material_override/0 = SubResource("StandardMaterial3D_uoh4m")
+
+[node name="geometry_12" parent="Handmade/Aurobindo_Bhavan/world" parent_id_path=PackedInt32Array(1898944524, 1600208316) index="12" unique_id=782775032]
+visible = false
+surface_material_override/0 = SubResource("StandardMaterial3D_uoh4m")
+
+[node name="geometry_13" parent="Handmade/Aurobindo_Bhavan/world" parent_id_path=PackedInt32Array(1898944524, 1600208316) index="13" unique_id=1123417433]
+visible = false
+surface_material_override/0 = SubResource("StandardMaterial3D_uoh4m")
+
+[editable path="Handmade/Aurobindo_Bhavan"]
