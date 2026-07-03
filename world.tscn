@@ -1,0 +1,29 @@
+[gd_scene format=3 uid="uid://dnoyyquwiqjn2"]
+
+[ext_resource type="Script" uid="uid://euqjwa3j3in3" path="res://load_map.gd" id="1_fj7yv"]
+[ext_resource type="PackedScene" uid="uid://copggt6hebcq2" path="res://player.tscn" id="2_aqk2v"]
+[ext_resource type="Texture2D" uid="uid://dx5ysmcq1sit0" path="res://tileset_placeholder.png" id="2_tlwt5"]
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_aqk2v"]
+texture = ExtResource("2_tlwt5")
+0:0/0 = 0
+1:0/0 = 0
+1:0/0/physics_layer_0/polygon_0/points = PackedVector2Array(-8, -8, 8, -8, 8, 8, -8, 8)
+2:0/0 = 0
+3:0/0 = 0
+4:0/0 = 0
+4:0/0/physics_layer_0/polygon_0/points = PackedVector2Array(-8, -8, 8, -8, 8, 8, -8, 8)
+5:0/0 = 0
+
+[sub_resource type="TileSet" id="TileSet_f3sb7"]
+physics_layer_0/collision_layer = 1
+sources/0 = SubResource("TileSetAtlasSource_aqk2v")
+
+[node name="World" type="Node2D" unique_id=1660568458]
+script = ExtResource("1_fj7yv")
+
+[node name="Player" parent="." unique_id=461253947 instance=ExtResource("2_aqk2v")]
+position = Vector2(5650, 7950)
+
+[node name="Ground" type="TileMapLayer" parent="." unique_id=475843668]
+tile_set = SubResource("TileSet_f3sb7")

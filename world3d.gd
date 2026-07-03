@@ -1,0 +1,467 @@
+
+# world3d.gd — Godot 4.x (v4)
+# Same campus builder as v3, now editor-friendly:
+#   - Tick "Rebuild In Editor" in the Inspector to build the campus
+#     inside the editor so you can hand-place walls/gates against it.
+#   - Everything generated lives under a "Generated" child node.
+#     Rebuilding wipes ONLY that node. Player3D, Handmade, and anything
+#     else you add by hand are never touched.
+
+@tool
+extends Node3D
+
+@export var rebuild_in_editor: bool = false:
+	set(_v):
+		rebuild_in_editor = false
+		if Engine.is_editor_hint() and is_inside_tree():
+			_full_build()
+
+const COL := {
+	"ground": Color(0.34, 0.53, 0.26),
+	"field":  Color(0.47, 0.72, 0.36),
+	"road":   Color(0.16, 0.16, 0.175),
+	"path":   Color(0.72, 0.70, 0.66),
+}
+const WALLS := [
+	Color("#C96F4A"), Color("#D98E5F"), Color("#B96A50"),
+	Color("#D4A55E"), Color("#C25B4E"), Color("#D9B380"),
+]
+const ROOF_DARKEN := 0.55
+const TREE_COUNT := 350
+
+var _gen: Node3D
+var _window_tex: ImageTexture
+var _noise_tex: NoiseTexture2D
+var _bpolys: Array = []
+var _wpolys: Array = []
+var _ribbons: Array = []
+
+func _ready() -> void:
+	if not Engine.is_editor_hint():
+		_full_build()
+
+func _full_build() -> void:
+	var old := get_node_or_null("Generated")
+	if old != null:
+		remove_child(old)
+		old.free()
+	_gen = Node3D.new()
+	_gen.name = "Generated"
+	add_child(_gen)
+	_window_tex = _make_window_texture()
+	_noise_tex = _make_noise_texture()
+	_bpolys.clear()
+	_wpolys.clear()
+	_ribbons.clear()
+	_add_ground_and_light()
+	_build_campus("res://data/campus3d.json")
+
+# ------------------------------ textures ------------------------------
+func _make_window_texture() -> ImageTexture:
+	var size := 64
+	var img := Image.create(size, size, true, Image.FORMAT_RGBA8)
+	img.fill(Color(1, 1, 1))
+	var win := Color(0.18, 0.24, 0.34)
+	var sill := Color(0.75, 0.75, 0.75)
+	for wy in range(2):
+		for wx in range(2):
+			var x0 := 8 + wx * 32
+			var y0 := 6 + wy * 32
+			for py in range(y0, y0 + 16):
+				for px in range(x0, x0 + 14):
+					img.set_pixel(px, py, win)
+			for px in range(x0 - 1, x0 + 15):
+				img.set_pixel(px, y0 + 16, sill)
+	img.generate_mipmaps()
+	return ImageTexture.create_from_image(img)
+
+func _make_noise_texture() -> NoiseTexture2D:
+	var n := FastNoiseLite.new()
+	n.frequency = 0.06
+	var nt := NoiseTexture2D.new()
+	nt.noise = n
+	nt.seamless = true
+	nt.width = 256
+	nt.height = 256
+	return nt
+
+# ------------------------------ materials -----------------------------
+func _flat_mat(c: Color, noisy := false) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = c
+	if noisy:
+		m.albedo_texture = _noise_tex
+		m.uv1_triplanar = true
+		m.uv1_scale = Vector3(0.06, 0.06, 0.06)
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.roughness = 0.95
+	return m
+
+func _wall_mat(c: Color) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = c
+	m.albedo_texture = _window_tex
+	m.uv1_triplanar = true
+	m.uv1_scale = Vector3(0.25, 0.25, 0.25)
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	m.roughness = 0.9
+	return m
+
+func _water_mat() -> ShaderMaterial:
+	var sh := Shader.new()
+	sh.code = """
+shader_type spatial;
+render_mode cull_disabled;
+varying vec3 wpos;
+void vertex() { wpos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz; }
+void fragment() {
+	float w1 = sin(wpos.x * 0.55 + TIME * 1.3);
+	float w2 = sin(wpos.z * 0.42 - TIME * 0.9);
+	float w3 = sin((wpos.x + wpos.z) * 0.9 + TIME * 0.6);
+	float m = 0.5 + 0.5 * (w1 + w2 + w3) / 3.0;
+	vec3 deep = vec3(0.13, 0.35, 0.58);
+	vec3 shallow = vec3(0.30, 0.62, 0.84);
+	ALBEDO = mix(deep, shallow, m);
+	ROUGHNESS = 0.12;
+	SPECULAR = 0.65;
+}
+"""
+	var m := ShaderMaterial.new()
+	m.shader = sh
+	return m
+
+# ------------------------------ custom textures ------------------------------
+func _pbr_mat(albedo_path: String, normal_path: String, rough_path: String, uv_scale: float = 0.2) -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	
+	if ResourceLoader.exists(albedo_path):
+		m.albedo_texture = load(albedo_path)
+	
+	if ResourceLoader.exists(normal_path):
+		m.normal_enabled = true
+		m.normal_texture = load(normal_path)
+		
+	if ResourceLoader.exists(rough_path):
+		m.roughness_texture = load(rough_path)
+	
+	# Triplanar mapping is required for generated CSGPolygons so textures tile properly
+	m.uv1_triplanar = true
+	m.uv1_scale = Vector3(uv_scale, uv_scale, uv_scale)
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	
+	return m
+
+# ------------------------------ geometry ------------------------------
+func _flat_poly(points: Array, y: float, mat: Material) -> void:
+	var node := CSGPolygon3D.new()
+	var pts := PackedVector2Array()
+	for p in points:
+		pts.append(Vector2(p[0], p[1]))
+	node.polygon = pts
+	node.depth = 0.15
+	node.material = mat
+	node.rotation_degrees = Vector3(90, 0, 0)
+	node.position = Vector3(0, y, 0)
+	_gen.add_child(node)
+
+func _build_campus(path: String) -> void:
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		push_error("campus3d.json not found at " + path)
+		return
+	var data: Dictionary = JSON.parse_string(f.get_as_text())
+
+	var water_material := _water_mat()
+	for fld in data.get("fields", []):
+		_flat_poly(fld, 0.03, _flat_mat(COL["field"], true))
+	for w in data.get("water", []):
+		_flat_poly(w, 0.06, water_material)
+		_wpolys.append(w)
+		
+	# Create the materials using the exact paths from your FileSystem dock
+	var asphalt_mat = _pbr_mat(
+		"res://assets/asphalt/asphalt_02_diff_1k.jpg",
+		"res://assets/asphalt/asphalt_02_nor_gl_1k.jpg",
+		"res://assets/asphalt/asphalt_02_rough_1k.jpg",
+		0.2 # Adjust this number to scale the asphalt texture up or down
+	)
+	
+	var brick_mat = _pbr_mat(
+		"res://assets/brkpavement/brick_pavement_03_diff_1k.jpg",
+		"res://assets/brkpavement/brick_pavement_03_nor_gl_1k.jpg",
+		"res://assets/brkpavement/brick_pavement_03_rough_1k.jpg",
+		0.3 # Adjust this number to scale the brick texture up or down
+	)
+
+	# Apply custom materials to ribbons
+	for r in data.get("ribbons", []):
+		var kind: String = r["kind"]
+		var mat: Material
+		
+		if kind == "road":
+			mat = asphalt_mat
+		elif kind == "path":
+			mat = brick_mat
+		else:
+			mat = _flat_mat(COL.get(kind, Color.WHITE), true)
+			
+		_flat_poly(r["points"], 0.10 if kind == "road" else 0.08, mat)
+		_ribbons.append(r["points"])
+
+	var count := 0
+	for b in data.get("buildings", []):
+		var h := float(b["height"])
+		_bpolys.append(b["points"])
+
+		var model_path := "res://models/%s.glb" % str(b["name"]).replace(" ", "_")
+		if b["name"] != "" and ResourceLoader.exists(model_path):
+			var scene: PackedScene = load(model_path)
+			var inst := scene.instantiate()
+			var c := _centroid(b["points"])
+			inst.position = Vector3(c.x, 0, c.y)
+			_gen.add_child(inst)
+		else:
+			var pts := PackedVector2Array()
+			for p in b["points"]:
+				pts.append(Vector2(p[0], p[1]))
+			var wall_color: Color = WALLS[hash(str(b["name"]) + str(count)) % WALLS.size()]
+
+			var body := CSGPolygon3D.new()
+			body.polygon = pts
+			body.depth = h
+			body.material = _wall_mat(wall_color)
+			body.rotation_degrees = Vector3(90, 0, 0)
+			body.position = Vector3.ZERO
+			body.use_collision = true
+			_gen.add_child(body)
+
+			var roof := CSGPolygon3D.new()
+			roof.polygon = pts
+			roof.depth = 0.5
+			roof.material = _flat_mat(wall_color.darkened(ROOF_DARKEN))
+			roof.rotation_degrees = Vector3(90, 0, 0)
+			roof.position = Vector3(0, h, 0)
+			_gen.add_child(roof)
+		count += 1
+
+		if b["name"] != "":
+			var c2 := _centroid(b["points"])
+			var area := Area3D.new()
+			var shape := CollisionShape3D.new()
+			var box := BoxShape3D.new()
+			box.size = Vector3(18, 8, 18)
+			shape.shape = box
+			area.add_child(shape)
+			area.position = Vector3(c2.x, 2, c2.y)
+			area.set_meta("building_name", b["name"])
+			_gen.add_child(area)
+
+			var label := Label3D.new()
+			label.text = b["name"]
+			label.font_size = 96
+			label.pixel_size = 0.02
+			label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			label.modulate = Color(1, 1, 0.9)
+			label.outline_size = 24
+			label.position = Vector3(c2.x, h + 3.0, c2.y)
+			_gen.add_child(label)
+	print("Built %d buildings" % count)
+
+	_scatter_trees(data.get("bounds", {}))
+	_scatter_grass(data.get("fields", []))
+	
+const GRASS_PER_FIELD := 4000
+
+func _scatter_grass(fields: Array) -> void:
+	var mesh_path := "res://assets/grass_blades/grass.res"
+	var shader_path := "res://assets/grass_blades/grass.gdshader"
+	if not ResourceLoader.exists(mesh_path):
+		push_warning("grass.res not found — skipping grass")
+		return
+	var blade_mesh: Mesh = load(mesh_path)
+
+	var mat: Material
+	if ResourceLoader.exists(shader_path):
+		var sm := ShaderMaterial.new()
+		sm.shader = load(shader_path)
+		sm.set_shader_parameter("color", Color(0.18, 0.42, 0.16))
+		sm.set_shader_parameter("color2", Color(0.56, 0.75, 0.30))
+		mat = sm
+	else:
+		var stdm := StandardMaterial3D.new()
+		stdm.albedo_color = Color(0.30, 0.55, 0.22)
+		stdm.cull_mode = BaseMaterial3D.CULL_DISABLED
+		mat = stdm
+
+	var total := 0
+	for poly in fields:
+		if poly.size() < 3:
+			continue
+		var minx := INF
+		var maxx := -INF
+		var minz := INF
+		var maxz := -INF
+		for p in poly:
+			minx = min(minx, p[0]); maxx = max(maxx, p[0])
+			minz = min(minz, p[1]); maxz = max(maxz, p[1])
+
+		var spots: Array[Vector3] = []
+		var attempts := 0
+		while spots.size() < GRASS_PER_FIELD and attempts < GRASS_PER_FIELD * 8:
+			attempts += 1
+			var x := randf_range(minx, maxx)
+			var z := randf_range(minz, maxz)
+			if _point_in_poly(x, z, poly) and not _blocked(x, z):
+				spots.append(Vector3(x, 0.05, z))
+		if spots.is_empty():
+			continue
+
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = blade_mesh
+		mm.instance_count = spots.size()
+		for i in range(spots.size()):
+			var yaw := randf() * TAU
+			var s := randf_range(0.8, 1.3)
+			var b := Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s))
+			mm.set_instance_transform(i, Transform3D(b, spots[i]))
+
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		mmi.material_override = mat
+		_gen.add_child(mmi)
+		total += spots.size()
+	print("Planted %d grass blades" % total)
+	
+	
+func _centroid(points: Array) -> Vector2:
+	var cx := 0.0
+	var cz := 0.0
+	for p in points:
+		cx += p[0]
+		cz += p[1]
+	return Vector2(cx / points.size(), cz / points.size())
+
+# ------------------------------- trees --------------------------------
+func _point_in_poly(x: float, z: float, poly: Array) -> bool:
+	var inside := false
+	var j := poly.size() - 1
+	for i in range(poly.size()):
+		var xi: float = poly[i][0]
+		var zi: float = poly[i][1]
+		var xj: float = poly[j][0]
+		var zj: float = poly[j][1]
+		if ((zi > z) != (zj > z)) and (x < (xj - xi) * (z - zi) / (zj - zi) + xi):
+			inside = not inside
+		j = i
+	return inside
+
+func _blocked(x: float, z: float) -> bool:
+	for poly in _bpolys:
+		if _point_in_poly(x, z, poly):
+			return true
+	for poly in _wpolys:
+		if _point_in_poly(x, z, poly):
+			return true
+	for quad in _ribbons:
+		if _point_in_poly(x, z, quad):
+			return true
+	return false
+
+func _scatter_trees(bounds: Dictionary) -> void:
+	if bounds.is_empty():
+		return
+	var min_x: float = bounds["min_x"]
+	var max_x: float = bounds["max_x"]
+	var min_z: float = bounds["min_z"]
+	var max_z: float = bounds["max_z"]
+
+	var spots: Array[Vector3] = []
+	var attempts := 0
+	while spots.size() < TREE_COUNT and attempts < TREE_COUNT * 12:
+		attempts += 1
+		var x := randf_range(min_x, max_x)
+		var z := randf_range(min_z, max_z)
+		if not _blocked(x, z):
+			spots.append(Vector3(x, 0, z))
+
+	var trunk_mesh := CylinderMesh.new()
+	trunk_mesh.top_radius = 0.22
+	trunk_mesh.bottom_radius = 0.3
+	trunk_mesh.height = 2.4
+	trunk_mesh.material = _flat_mat(Color(0.38, 0.26, 0.15))
+
+	var canopy_mesh := SphereMesh.new()
+	canopy_mesh.radius = 1.0
+	canopy_mesh.height = 2.0
+	canopy_mesh.material = _flat_mat(Color(0.20, 0.45, 0.20))
+
+	var trunks := MultiMesh.new()
+	trunks.transform_format = MultiMesh.TRANSFORM_3D
+	trunks.mesh = trunk_mesh
+	trunks.instance_count = spots.size()
+
+	var canopies := MultiMesh.new()
+	canopies.transform_format = MultiMesh.TRANSFORM_3D
+	canopies.mesh = canopy_mesh
+	canopies.instance_count = spots.size()
+
+	for i in range(spots.size()):
+		var s := randf_range(0.8, 1.6)
+		var pos: Vector3 = spots[i]
+		trunks.set_instance_transform(i,
+			Transform3D(Basis.IDENTITY.scaled(Vector3(s, s, s)),
+				pos + Vector3(0, 1.2 * s, 0)))
+		canopies.set_instance_transform(i,
+			Transform3D(Basis.IDENTITY.scaled(Vector3(2.2 * s, 2.2 * s, 2.2 * s)),
+				pos + Vector3(0, 2.4 * s + 1.6 * s, 0)))
+
+	var tmi := MultiMeshInstance3D.new()
+	tmi.multimesh = trunks
+	_gen.add_child(tmi)
+	var cmi := MultiMeshInstance3D.new()
+	cmi.multimesh = canopies
+	_gen.add_child(cmi)
+	print("Planted %d trees" % spots.size())
+
+# --------------------------- ground & light ---------------------------
+func _add_ground_and_light() -> void:
+	var ground := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(3000, 3000)
+	ground.mesh = plane
+	ground.material_override = _flat_mat(COL["ground"], true)
+	ground.position = Vector3(600, 0, 600)
+	_gen.add_child(ground)
+
+	var gbody := StaticBody3D.new()
+	var gshape := CollisionShape3D.new()
+	var gbox := BoxShape3D.new()
+	gbox.size = Vector3(3000, 1, 3000)
+	gshape.shape = gbox
+	gbody.add_child(gshape)
+	gbody.position = Vector3(600, -0.5, 600)
+	_gen.add_child(gbody)
+
+	var sun := DirectionalLight3D.new()
+	sun.rotation_degrees = Vector3(-50, -35, 0)
+	sun.light_color = Color(1.0, 0.95, 0.85)
+	sun.light_energy = 1.25
+	sun.shadow_enabled = true
+	_gen.add_child(sun)
+
+	var env := WorldEnvironment.new()
+	var e := Environment.new()
+	e.background_mode = Environment.BG_COLOR
+	e.background_color = Color(0.70, 0.84, 0.96)
+	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	e.ambient_light_color = Color(1.0, 0.97, 0.92)
+	e.ambient_light_energy = 0.6
+	e.adjustment_enabled = true
+	e.adjustment_saturation = 1.12
+	e.adjustment_contrast = 1.03
+	e.fog_enabled = true
+	e.fog_light_color = Color(0.76, 0.83, 0.92)
+	e.fog_density = 0.0001
+	env.environment = e
+	_gen.add_child(env)
