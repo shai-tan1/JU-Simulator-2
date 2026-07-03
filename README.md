@@ -25,4 +25,5 @@ Open project.godot in Godot 4.
 Hit the play button.
 If you just want to play the web build without opening Godot, go to the docs folder and open index.html in your browser (though sometimes Godot web builds need a local server to run properly, so using the GitHub Pages link above is easier).
 
-Suggest Improvements, would definately like to hear...
+Suggest Improvements and Ideas, would definately like to hear...
+can raise a issue.
