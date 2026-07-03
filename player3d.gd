@@ -1,10 +1,9 @@
 # player3d.gd — Godowwwwwwwwwwwwwwwwwwwwt 4.x
 # Attach to a CharacterBody3D with children:
 #   - CollisionShape3D (CapsuleShape3D, radius 0.5, height 1.8)
-#   - MeshInstance3D  (CapsuleMesh, same size — the placeholder body)
+#   - MeshInstance3D  (CapsuleMesh, same size — the placeholder body) -> HIDE THIS
 #   - Node3D named "CamPivot" containing a Camera3D
-# The camera pivot gives the tilted three-quarter view; adjust TILT_DEG
-# and CAM_DIST live in the editor to taste.
+#   - Node3D named "student" (The FBX imported model)
 
 extends CharacterBody3D
 
@@ -14,6 +13,8 @@ const CAM_DIST := 18.0      # meters from player
 
 @onready var pivot: Node3D = $CamPivot
 @onready var cam: Camera3D = $CamPivot/Camera3D
+@onready var character_mesh: Node3D = $student
+@onready var anim_player: AnimationPlayer = $student/AnimationPlayer
 
 var current_building: String = ""
 
@@ -21,18 +22,36 @@ func _ready() -> void:
 	pivot.rotation_degrees.x = TILT_DEG
 	cam.position = Vector3(0, 0, CAM_DIST)
 	cam.current = true
+	
+	# Force the size and ground position on load
+	character_mesh.scale = Vector3(2.2, 2.2, 2.2) # Increases size by 2.2x
+	character_mesh.position.y = -0.9 # Pushes the mesh down to the bottom of your capsule
 
 func _physics_process(_delta: float) -> void:
 	if not GameState.game_active:
 		velocity = Vector3.ZERO
+		anim_player.stop()
 		move_and_slide()
 		return
+		
 	var input := Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 	velocity.x = input.x * SPEED
 	velocity.z = input.y * SPEED
 	velocity.y = -9.8  # keep grounded
+	
+	if input.length() > 0:
+		# Standard orientation math for Mixamo FBX imports in Godot.
+		# If the character walks exactly backwards, change it to: atan2(velocity.x, velocity.z) + PI
+		var target_angle = atan2(velocity.x, velocity.z)
+		
+		# Smoothly rotate the character to face the target angle
+		character_mesh.rotation.y = lerp_angle(character_mesh.rotation.y, target_angle, 15.0 * _delta)
+		
+		anim_player.play("mixamo_com")
+	else:
+		anim_player.stop()
+		
 	move_and_slide()
-
 func _unhandled_input(event: InputEvent) -> void:
 	if not GameState.game_active:
 		return
